@@ -3,6 +3,14 @@
 #include <LiquidCrystal_I2C.h>
 #include "DHT.h"
 
+//needed for Wifi setup library
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
+
+//for LED status
+#include <Ticker.h>
+Ticker ticker;
 //Define input PIN and type for DHT11 Sensor
 #define DHTPIN D3     // what digital pin we're connected to
 #define DHTTYPE DHT11   // DHT 11
@@ -19,6 +27,13 @@
 #define HEAT_INDEX_COLD_THRESHOLD 22
 #define HEAT_INDEX_COOL_THRESHOLD 28
 #define HEAT_INDEX_HOT_THRESHOLD 38
+
+//define Wifi LED
+#define WIFI_LED_PIN D6
+#define BUILTIN_LED D4
+//define Wifi MSG
+#define WIFI_ERROR "Can't connect"
+#define WIFI_SUCCESS "WIFI ok!"
 
 //LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2); // set the LCD address to 0x20 for a 16 chars and 2 line display
@@ -56,6 +71,8 @@ void setup()
 
   //Start DHT Sensor
   dht.begin();                    // initialize DHT sensor
+
+  startWifi();
 }
 
 void loop()
@@ -173,8 +190,65 @@ void printSecondLine(String text)
   lcd.setCursor(0, 1);
   lcd.print(text);
 }
+////////////////WIFI////////////////////////////////
+//Tick of LED
+void tick()
+{
+  //toggle state
+  int state = digitalRead(WIFI_LED_PIN);  // get the current state of GPIO1 pin
+  digitalWrite(WIFI_LED_PIN, !state);     // set pin to the opposite state
+}
 
-//SDS011 correction
+//gets called when WiFiManager enters configuration mode
+void configModeCallback (WiFiManager *myWiFiManager) {
+  lcd.clear();
+  printFirstLine("Config mode");
+  delay(1000);
+  lcd.clear();
+  printFirstLine(String(WiFi.softAPIP()));
+  //if you used auto generated SSID, print it
+  printSecondLine(myWiFiManager->getConfigPortalSSID());
+  //entered config mode, make led toggle faster
+  ticker.attach(0.2, tick);
+}
+
+//start Wifi
+void startWifi()
+{
+  delay(1000);
+  //Start Wifi Mananger, set D4 led pin as output
+  pinMode(WIFI_LED_PIN, OUTPUT);
+  // start ticker with 0.5 because esp0-12 will start in AP mode and try to connect
+  ticker.attach(0.5, tick);
+  //WiFiManager
+  //Local intialization. Once its business is done, there is no need to keep it around
+  WiFiManager wifiManager;
+  //reset settings - for testing
+  //wifiManager.resetSettings();
+
+  //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
+  wifiManager.setAPCallback(configModeCallback);
+
+  //fetches ssid and pass and tries to connect
+  //if it does not connect it starts an access point with the specified name
+  //here  "AutoConnectAP"
+  //and goes into a blocking loop awaiting configuration
+  lcd.clear();
+  if (!wifiManager.autoConnect()) {
+    printFirstLine(WIFI_ERROR);
+    delay(1000);
+    //reset and try again, or maybe put it to deep sleep
+    ESP.reset();
+  }
+
+  //if you get here you have connected to the WiFi
+  printFirstLine(WIFI_SUCCESS);
+  ticker.detach();
+  //keep LED on
+  digitalWrite(WIFI_LED_PIN, HIGH);
+}
+
+////////////////SDS011 correction/////////////////////////////////////
 //Correction algorithm thanks to help of Zbyszek Kiliański (Krakow Zdroj)
 float normalizePM25(float pm25, float humidity) {
   return pm25 / (1.0 + 0.48756 * pow((humidity / 100.0), 8.60068));
