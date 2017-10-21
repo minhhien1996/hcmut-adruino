@@ -28,6 +28,17 @@ Ticker ticker;
 #define HEAT_INDEX_COOL_THRESHOLD 28
 #define HEAT_INDEX_HOT_THRESHOLD 38
 
+//define notification
+#define HEAT_INDEX_WARM_NOTIFICATION "Keep warm!"
+#define HEAT_INDEX_OK_NOTIFICATION "It's okay!"
+#define HEAT_INDEX_CAREFUL_NOTIFICATION "Be careful"
+#define HEAT_INDEX_DANGER_NOTIFICATION "DANGER!"
+
+#define DUST_SAFE_NOTIFICATION "Safe"
+#define DUST_CAREFUL_NOTIFICATION "Be careful"
+#define DUST_DANGER_NOTIFICATION "DANGER!"
+
+
 //define Wifi LED
 #define WIFI_LED_PIN D6
 #define BUILTIN_LED D4
@@ -122,22 +133,22 @@ void loop()
   //Create suitable action and display on LCD
   if (hic < HEAT_INDEX_COLD_THRESHOLD)
   {
-    printSecondLine("Keep warm!");
+    printSecondLine(HEAT_INDEX_WARM_NOTIFICATION);
   }
   else if (hic < HEAT_INDEX_COOL_THRESHOLD)
   {
-    printSecondLine("It's okay!");
+    printSecondLine(HEAT_INDEX_OK_NOTIFICATION);
   }
   else if (hic < HEAT_INDEX_HOT_THRESHOLD)
   {
-    printSecondLine("Be careful");
+    printSecondLine(HEAT_INDEX_CAREFUL_NOTIFICATION);
   }
   else {
-    printSecondLine("DANGER!");
+    printSecondLine(HEAT_INDEX_DANGER_NOTIFICATION);
   }
 
 
-  //  Comment due to SDS011 error
+  // SDS011 (!?error)
   delay(3000);
   lcd.clear();
   //Read data from SDS011
@@ -166,14 +177,14 @@ void loop()
   printFirstLine(pm25DemoBuffer);
   if (randomPm25 < DUST_SAFE_THRESHOLD)
   {
-    printSecondLine("Safe");
+    printSecondLine(DUST_SAFE_NOTIFICATION);
   }
   else if (randomPm25 < DUST_DANGER_THRESHOLD)
   {
-    printSecondLine("Be careful!");
+    printSecondLine(DUST_CAREFUL_NOTIFICATION);
   }
   else {
-    printSecondLine("DANGER!");
+    printSecondLine(DUST_DANGER_NOTIFICATION);
   }
 }
 
@@ -201,11 +212,9 @@ void tick()
 
 //gets called when WiFiManager enters configuration mode
 void configModeCallback (WiFiManager *myWiFiManager) {
-  lcd.clear();
-  printFirstLine("Config mode");
   delay(1000);
   lcd.clear();
-  printFirstLine(String(WiFi.softAPIP()));
+  printFirstLine("Config Mode");
   //if you used auto generated SSID, print it
   printSecondLine(myWiFiManager->getConfigPortalSSID());
   //entered config mode, make led toggle faster
