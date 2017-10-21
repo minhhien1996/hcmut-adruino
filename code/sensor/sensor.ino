@@ -7,6 +7,10 @@
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
+// Them thu vien
+#include <ESP8266HTTPClient.h>
+#include <WifiLocation.h>
+
 
 //for LED status
 #include <Ticker.h>
@@ -46,6 +50,13 @@ Ticker ticker;
 #define WIFI_ERROR "Can't connect"
 #define WIFI_SUCCESS "WIFI ok!"
 
+// Thong so WiFi
+const String sourceId = "NZC-00T-SJL-9R1";
+const String host = "http://sniffer.axonactive.com";
+const char* hostCheck = "http://sniffer.axonactive.com";
+const String url = "/api/pollutantvalues";
+String json;
+
 //LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2); // set the LCD address to 0x20 for a 16 chars and 2 line display
 
@@ -84,6 +95,7 @@ void setup()
   dht.begin();                    // initialize DHT sensor
 
   startWifi();
+
 }
 
 void loop()
@@ -146,7 +158,11 @@ void loop()
   else {
     printSecondLine(HEAT_INDEX_DANGER_NOTIFICATION);
   }
-
+  //POST DATA
+  String macAddr = WiFi.macAddress();
+  Serial.println(macAddr);
+  json = generateJSON(macAddr, t, h);
+  postDataHTTPClient();
 
   // SDS011 (!?error)
   delay(3000);
@@ -274,3 +290,33 @@ float calculatePolutionPM25(float pm25) {
 float calculatePolutionPM10(float pm10) {
   return pm10 * 100 / 50;
 }
+
+//POST DATA
+void postDataHTTPClient()
+{
+  lcd.clear();
+  printFirstLine("Uploading..");
+  const String CONTENT_TYPE_VALUE = "application/json";
+  const String CONTENT_TYPE_KEY = "Content-Type";
+  HTTPClient http;
+  http.begin(host+url);
+  http.addHeader(CONTENT_TYPE_KEY, CONTENT_TYPE_VALUE);
+  http.POST(json);
+  http.writeToStream(&Serial);
+  http.end();
+  lcd.clear();
+  printFirstLine("Upload done");
+}
+
+String generateJSON(String macAd, float temp, float hum) {
+//  String googleApiKey = "AIzaSyC5EIRAbuh5uOPeTfZ3rmsHAcqV9Kr7QNo";
+//  WifiLocation location(googleApiKey);
+//  location_t loc = location.getGeoFromWiFi();
+  //String lat = String(loc.lat, 7);
+  //String lng = String(loc.lon, 7);
+  String lat = "10.763487";
+  String lng = "106.656743";
+  return "{\n\t\"source\": {\n\t\t\"sourceId\": \"" + sourceId + "\",\n\t\t\"macAddress\": \""+ macAd +"\",\n\t\t\"gpsLocation\": {\n\t\t\t\"latitude\": \""+ lat +"\",\n\t\t\t\"longitude\": \"" + lng + "\"\n\t\t}\n\t},\n\t\"value\": [\n\t\t{\n\t\t\t\"code\": \"TEMP\",\n\t\t\t\"sensor\": \"DHT11\",\n\t\t\t\"value\": {\n\t\t\t\t\"value\": " + String(temp) +"\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\t\"code\": \"HUM\",\n\t\t\t\"sensor\": \"DHT11\",\n\t\t\t\"value\": {\n\t\t\t\t\"value\": " + String(hum) + "\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\t\"code\": \"DUST\",\n\t\t\t\"sensor\": \"SDS011\",\n\t\t\t\"value\": {\n\t\t\t\t\"value\": 0.1\n\t\t\t}\n\t\t}\n\t]\n}";
+}
+
+
