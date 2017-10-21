@@ -3,20 +3,32 @@
 #include <LiquidCrystal_I2C.h>
 #include "DHT.h"
 
+//Define input PIN and type for DHT11 Sensor
 #define DHTPIN D3     // what digital pin we're connected to
 #define DHTTYPE DHT11   // DHT 11
 
+//Define PIN for SDS011
 // SoftSerial RX PIN is D1 and goes to SDS TX
 // SoftSerial TX PIN is D2 and goes to SDS RX
 #define SDS_RX D5
 #define SDS_TX D6
 
+//LCD
 LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x20 for a 16 chars and 2 line display
+
+//DHT11 Sensor
 DHT dht(DHTPIN, DHTTYPE);
+
+//Nova SDS011 Sensor
 SDS011 sds;
+
+//pm10 and pm2.5 dust data
 float p10,p25;
+
+//error handler for SDS011
 int error;
 
+//Data structure for JSON
 struct Air {
   float pm25;
   float pm10;
@@ -26,15 +38,21 @@ struct Air {
 
 void setup()
 {
-  Serial.begin(9600);     // Output to USB/TTL
+  //Output to Serial Console
+  Serial.begin(9600);
+
+  //Start SDS011
   sds.begin(SDS_RX,SDS_TX);
-  
+
+  //Start LCD
   lcd.init();                      // initialize the lcd 
-  dht.begin();                    // initialize DHT sensor
   // Print a message to the LCD.
   lcd.backlight();
   lcd.setCursor(0, 0);
   lcd.print("Loading...");
+  
+  //Start DHT Sensor
+  dht.begin();                    // initialize DHT sensor
 }
 
 void loop()
@@ -59,7 +77,8 @@ void loop()
   float hif = dht.computeHeatIndex(f, h);
   // Compute heat index in Celsius (isFahreheit = false)
   float hic = dht.computeHeatIndex(t, h, false);
-
+  
+  //Print to LCD
   String tempBuffer;
   tempBuffer+= F("Temp: ");
   tempBuffer+= String(t, 1);
@@ -73,6 +92,7 @@ void loop()
   printSecondLine(humidityBuffer);
   
   delay(1000);
+  //Read data from SDS011
    error = sds.read(&p25,&p10);
   if (!error) {  
     Serial.println(String(normalizePM25(p25/10, h), 1));
@@ -82,19 +102,22 @@ void loop()
   }
 }
 
+//Function for print first line on LCD
 void printFirstLine(String text)
 {
   lcd.setCursor(0, 0);
   lcd.print(text);
 }
 
+//Function for print second line on LCD
 void printSecondLine(String text)
 {
   lcd.setCursor(0, 1);
   lcd.print(text);
 }
 
-//Correction algorythm thanks to help of Zbyszek Kiliański (Krakow Zdroj)
+//SDS011 correction
+//Correction algorithm thanks to help of Zbyszek Kiliański (Krakow Zdroj)
 float normalizePM25(float pm25, float humidity){
   return pm25/(1.0+0.48756*pow((humidity/100.0), 8.60068));
 }
