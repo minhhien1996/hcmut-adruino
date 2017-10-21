@@ -159,6 +159,7 @@ void loop()
     printSecondLine(HEAT_INDEX_DANGER_NOTIFICATION);
   }
   //POST DATA
+  delay(2000);
   String macAddr = WiFi.macAddress();
   Serial.println(macAddr);
   json = generateJSON(macAddr, t, h);
